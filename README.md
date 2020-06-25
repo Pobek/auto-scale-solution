@@ -187,3 +187,19 @@ AutoScaler's arguments to be passed (entire yaml file can be seen on [autoscaler
   ```
 
 After configuring the auto-scaler, whenever an update occurs on the deployment's replica count and the pod is in "Pending" state due to lack of resources, the auto-scaler will try to scale either of the spot instance-groups node count first and if cannot, will scale the on-demand instance group node count.
+
+#### Spot Termination Handler
+
+Even though we deployed an auto-scaler to automatically scale the instance-group's count according to our workload, when running on 'spot-instances' we run into a risk of our instance being terminated by AWS. AWS provides a two minute notice about reclaiming the 'spot-instances' and we need to look after it.
+
+To do so, the solution uses [k8s-spot-termination-handler](https://github.com/helm/charts/tree/master/stable/k8s-spot-termination-handler) helm2 chart.
+
+There is no need to set any custom values at this point.
+
+Install command:
+
+```bash
+helm install stable/k8s-spot-termination-handler --namespace kube-system --name spot-term-handler
+```
+
+The `k8s-spot-termination-handler` deploys a DaemonSet (one pod per node) and will query the EC2 spot instance termination endpoint to see if the node he is currently on is going to be shut down. If so, the application will gracefully start to shut down all of the pods on the current node to allow them to be provisioned onto a different node.
