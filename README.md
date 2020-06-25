@@ -1,12 +1,12 @@
 # Auto Scaling Solution
 
-This repository contains the solution to the auto-scaling incident excersice.
+This repository contains the solution to the auto-scaling incident exercise..
 
 ## Problem
 
 Our production AWS k8s cluster is running on different instance groups, all of them are spot instance based.
 
-During a scaling event, we were unable to acquire new spot instances due to their availability dropping to 0 in the regions we reside in (Although our MaxPrice was set to the on demand value)
+During a scaling event, we were unable to acquire new spot instances due to their availability dropping to 0 in the regions we reside in (Although our Max Price was set to the on demand value)
 
 This event caused a major degradation to our performance due to the fact our services were not able to deal with the increasing request throughput.
 
@@ -18,7 +18,7 @@ design a solution that can deal with the described situation, while maintaining 
 
 The solution to the problem will take a few points as assumptions:
 
-1. The current spot instance groups have working nodes and didnt terminate. (meaning the current instance groups node number remains the same, just cannot request more).
+1. The current spot instance groups have 'working' nodes and didn't terminate. (meaning the current instance groups node number remains the same, just cannot request more).
 2. The kubernetes cluster was created using kops tool.
 3. State bucket is already created.
 4. IAM roles are already created.
@@ -105,7 +105,7 @@ The solution to the problem will take a few points as assumptions:
 
 ### Proposed solution
 
-The proposed solution is to create a third instance group but rather to define it for spot, we define it for on-demand but only as our fall back. Meaning, when an instance group needs to be scaled out, it will first try to scale a spot instance group and if cannot, will scale on-demand instance gruop.
+The proposed solution is to create a third instance group, but rather to define it for 'spot', we define it for on-demand but only as our fallback. Meaning, when an instance group needs to be scaled out, it will first try to scale a spot instance group and if cannot, will scale on-demand instance group.
 
 The proposed solution is taking a usage of [Kubernetes Cluster AutoScaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) application.
 
@@ -143,7 +143,7 @@ spec:
 
 #### Cluster AutoScaler configuration
 
-The AutoScaler app will be configured as followed:
+The AutoScaler app will be configured as follows:
 
 - Cloud provider : AWS
 - Skip nodes with local storage: False
@@ -154,7 +154,7 @@ The AutoScaler app will be configured as followed:
     - k8s.io/cluster-autoscaler/evya.test.cluster
 - balance-similar-node-groups: True
 
-Before deploying the autoscaler app, a priorty config map needs to be created to let the autoscaler know the priority of each instance group '[priority-expander-cm](cluster-autoscaler/priority-expander-cm.yaml)':
+Before deploying the autoscaler app, a priority config map needs to be created to let the autoscaler know the priority of each instance group '[priority-expander-cm](cluster-autoscaler/priority-expander-cm.yaml)':
 
   ```yaml
   apiVersion: v1
@@ -170,7 +170,7 @@ Before deploying the autoscaler app, a priorty config map needs to be created to
         - .*spot.*
   ```
 
-> The priority-expander configmap lets the autoscaler know the priority per instance group that is matched with the regex. The highest value wins and it will be auto-scaled first and unless it cannot, it wont scale the others.
+> The priority-expander configmap lets the autoscaler know the priority per instance group that is matched with the regex. The highest value wins and it will be auto-scaled first and unless it cannot, it won't scale the others.
 
 AutoScaler's arguments to be passed (entire yaml file can be seen on [autoscaler.yaml](cluster-autoscaler/autoscaler.yaml)):
 
@@ -186,4 +186,4 @@ AutoScaler's arguments to be passed (entire yaml file can be seen on [autoscaler
     - --balance-similar-node-groups
   ```
 
-After configuring the auto-scaler, whenever an update occurs on the deployment's replica count and the pod is in "Pending" state due to lack of resouces, the auto-scaler will try to scale either of the spot instance-groups node count first and if cannot, will scale the on-demand instance group node count.
+After configuring the auto-scaler, whenever an update occurs on the deployment's replica count and the pod is in "Pending" state due to lack of resources, the auto-scaler will try to scale either of the spot instance-groups node count first and if cannot, will scale the on-demand instance group node count.
