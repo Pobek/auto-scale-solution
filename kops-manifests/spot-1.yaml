@@ -1,0 +1,22 @@
+apiVersion: kops/v1alpha2
+kind: InstanceGroup
+metadata:
+  labels:
+    kops.k8s.io/cluster: evya.test.cluster
+    k8s.io/cluster-autoscaler/enabled: true
+    k8s.io/cluster-autoscaler/evya.test.cluster: owned
+  name: spot-1
+spec:
+  image: kope.io/k8s-1.16-debian-stretch-amd64-hvm-ebs-2020-01-17
+  machineType: t3.large
+  maxPrice: $(MAX_PRICE)
+  maxSize: 3
+  minSize: 1
+  nodeLabels:
+    kops.k8s.io/instancegroup: spot-1
+    group-type: "spot"
+  role: Node
+  subnets:
+  - us-east-1a
+  - us-east-1b
+  - us-east-1c

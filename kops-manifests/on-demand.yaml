@@ -1,0 +1,23 @@
+apiVersion: kops/v1alpha2
+kind: InstanceGroup
+metadata:
+  labels:
+    kops.k8s.io/cluster: evya.test.cluster
+    k8s.io/cluster-autoscaler/enabled: true
+    k8s.io/cluster-autoscaler/evya.test.cluster: owned
+  name: nodes
+spec:
+  image: kope.io/k8s-1.16-debian-stretch-amd64-hvm-ebs-2020-01-17
+  machineType: t3.large
+  maxSize: 3
+  minSize: 0
+  nodeLabels:
+    kops.k8s.io/instancegroup: on-demand
+    instance-type: "on-demand"
+  role: Node
+  subnets:
+  - us-east-1a
+  - us-east-1b
+  - us-east-1c
+  taints:
+  - instance-type=on-demand:PreferNoSchedule
