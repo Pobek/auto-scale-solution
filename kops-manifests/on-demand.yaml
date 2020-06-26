@@ -13,11 +13,11 @@ spec:
   minSize: 0
   nodeLabels:
     kops.k8s.io/instancegroup: on-demand
-    instance-type: "on-demand"
+    group-type: "on-demand"
   role: Node
   subnets:
   - us-east-1a
   - us-east-1b
   - us-east-1c
   taints:
-  - instance-type=on-demand:PreferNoSchedule
+  - group-type=on-demand:PreferNoSchedule
