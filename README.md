@@ -68,7 +68,7 @@ The solution to the problem will take a few points as assumptions:
       minSize: 1
       nodeLabels:
         kops.k8s.io/instancegroup: spot-1
-        group-type: "spot"
+        node-type/spot: "true"
       role: Node
       subnets:
       - us-east-1a
@@ -95,7 +95,7 @@ The solution to the problem will take a few points as assumptions:
       minSize: 1
       nodeLabels:
         kops.k8s.io/instancegroup: spot-2
-        group-type: "spot"
+        node-type/spot: "true"
       role: Node
       subnets:
       - us-east-1a
@@ -131,14 +131,14 @@ spec:
   minSize: 0
   nodeLabels:
     kops.k8s.io/instancegroup: on-demand
-    group-type: "on-demand"
+    node-type/on-demand: "true"
   role: Node
   subnets:
   - us-east-1a
   - us-east-1b
   - us-east-1c
   taints:
-  - group-type=on-demand:PreferNoSchedule
+  - node-type/on-demand=true:PreferNoSchedule
 ```
 
 #### Cluster AutoScaler configuration
@@ -203,3 +203,38 @@ helm install stable/k8s-spot-termination-handler --namespace kube-system --name 
 ```
 
 The `k8s-spot-termination-handler` deploys a DaemonSet (one pod per node) and will query the EC2 spot instance termination endpoint to see if the node he is currently on is going to be shut down. If so, the application will gracefully start to shut down all of the pods on the current node to allow them to be provisioned onto a different node.
+
+#### Scaling back to spot when ready
+
+Even though the solution defines a way to auto-scale into on-demand instances when 'spot' instances aren't available, it won't check to see if any 'spot' instances are back in the pool unless there is a change in the amount of replications.
+
+To make sure we always be on the 'spot' instances and only be on the 'on-demand' instances when it is a **must**, the solution will use an application called [k8s-spot-rescheduler](https://github.com/pusher/k8s-spot-rescheduler)
+
+Taken from their github: 
+
+```
+K8s Spot rescheduler is a tool that tries to reduce load
+on a set of Kubernetes nodes.
+It was designed with the purpose of moving Pods scheduled
+on AWS on-demand instances to AWS spot instances
+to allow the on-demand instances to be safely scaled down
+```
+
+Because the solution created a new instance group just for 'on-demand' instance types, added a taint of `PreferNoSchedule` and node labels that allow us to differentiate between 'spot' instances and 'on-demand' instances, we can configure `k8s-spot-rescheduler` with the following config to allow it to work (entire deployment file can be seen on [rescheduler.yaml](spot-rescheduler/rescheduler.yaml)):
+
+  ```
+  command:
+    - k8s-spot-rescheduler
+    - -v=2
+    - --running-in-cluster=true
+    - --namespace=kube-system
+    - --housekeeping-interval=10s
+    - --node-drain-delay=10m
+    - --pod-eviction-timeout=2m
+    - --max-graceful-termination=2m
+    - --listen-address=0.0.0.0:9235
+    - --on-demand-node-label=node-type/on-demand
+    - --spot-node-label=node-type/spot
+  ```
+
+Once deployed, `k8s-spot-rescheduler` will look to see if it is possible to migrate pods that exists on the 'on-demand' instance group, to the 'spot' instance group. If so, will start to drain the 'on-demand' node and the default kubernetes schedule will start to work. If not, will do nothing.

@@ -14,7 +14,7 @@ spec:
   minSize: 1
   nodeLabels:
     kops.k8s.io/instancegroup: spot-1
-    group-type: "spot"
+    node-type/spot: "true"
   role: Node
   subnets:
   - us-east-1a

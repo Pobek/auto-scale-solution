@@ -1,0 +1,152 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: k8s-spot-rescheduler
+  name: k8s-spot-rescheduler
+  namespace: kube-system
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: k8s-spot-rescheduler
+rules:
+  # For leader election
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - update
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+  # For listing and watching items
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+      - replicasets
+      - replicationcontrollers
+      - services
+      - statefulsets
+      - poddisruptionbudgets
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - apps
+    resources:
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - extensions
+    resources:
+      - replicasets
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - list
+      - get
+      - watch
+
+  # For rescheduling pods
+  - apiGroups:
+    - ""
+    resources:
+      - nodes
+    verbs:
+      - update
+  - apiGroups:
+    - ""
+    resources:
+      - pods/eviction
+    verbs:
+      - create
+
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - list
+      - get
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-spot-rescheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-spot-rescheduler
+subjects:
+- kind: ServiceAccount
+  name: k8s-spot-rescheduler
+  namespace: kube-system
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: k8s-spot-rescheduler
+  namespace: kube-system
+  labels:
+    app: k8s-spot-rescheduler
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: k8s-spot-rescheduler
+  template:
+    metadata:
+      labels:
+        app: k8s-spot-rescheduler
+    spec:
+      serviceAccountName: k8s-spot-rescheduler
+      containers:
+        - image: quay.io/pusher/k8s-spot-rescheduler:v0.3.0
+          name: k8s-spot-rescheduler
+          resources:
+            limits:
+              cpu: 20m
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 50Mi
+          command:
+            - k8s-spot-rescheduler
+            - -v=2
+            - --running-in-cluster=true
+            - --namespace=kube-system
+            - --housekeeping-interval=10s
+            - --node-drain-delay=10m
+            - --pod-eviction-timeout=2m
+            - --max-graceful-termination=2m
+            - --listen-address=0.0.0.0:9235
+            - --on-demand-node-label=node-type/on-demand
+            - --spot-node-label=node-type/spot
+          ports:
+          - name: http
+            containerPort: 9235
